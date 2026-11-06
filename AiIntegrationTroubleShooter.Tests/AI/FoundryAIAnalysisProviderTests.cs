@@ -1,7 +1,9 @@
 ﻿using AiIntegrationTroubleShooter.Api.AI;
 using AiIntegrationTroubleShooter.Api.Contracts;
+using AiIntegrationTroubleShooter.Api.Configuration;
 using AiIntegrationTroubleShooter.Api.Exceptions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 using Moq;
 
 
@@ -45,8 +47,7 @@ public class FoundryAIAnalysisProviderTests
                 new ChatResponse(
                     new ChatMessage(ChatRole.Assistant, jsonResponse)));
 
-        var provider = new FoundryAIAnalysisProvider(
-            mockChatClient.Object);
+        var provider = CreateProvider(mockChatClient);
 
         var request = new IntegrationIssueRequest
         {
@@ -88,8 +89,7 @@ public class FoundryAIAnalysisProviderTests
                         ChatRole.Assistant,
                         "This is not valid JSON")));
 
-        var provider = new FoundryAIAnalysisProvider(
-            mockChatClient.Object);
+        var provider = CreateProvider(mockChatClient);
 
         var request = new IntegrationIssueRequest
         {
@@ -137,8 +137,7 @@ public class FoundryAIAnalysisProviderTests
                 new ChatResponse(
                     new ChatMessage(ChatRole.Assistant, jsonResponse)));
 
-        var provider = new FoundryAIAnalysisProvider(
-            mockChatClient.Object);
+        var provider = CreateProvider(mockChatClient);
 
         var request = new IntegrationIssueRequest
         {
@@ -167,8 +166,7 @@ public class FoundryAIAnalysisProviderTests
             .ThrowsAsync(new HttpRequestException(
                 "Simulated connection failure."));
 
-        var provider = new FoundryAIAnalysisProvider(
-            mockChatClient.Object);
+        var provider = CreateProvider(mockChatClient);
 
         var request = new IntegrationIssueRequest
         {
@@ -183,5 +181,65 @@ public class FoundryAIAnalysisProviderTests
             () => provider.AnalyseAsync(request));
 
         Assert.IsType<HttpRequestException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task AnalyseAsync_WhenTimeoutOccurs_ThrowsAIProviderException()
+    {
+        // Arrange
+        var mockChatClient = new Mock<IChatClient>();
+
+        mockChatClient
+            .Setup(x => x.GetResponseAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken>(
+                async (_, _, token) =>
+                {
+                    await Task.Delay(Timeout.Infinite, token);
+                    return null!;
+                });
+
+        var settings = new AISettings
+        {
+            Provider = "Foundry",
+            Foundry = new FoundrySettings
+            {
+                TimeoutSeconds = 1
+            }
+        };
+
+        var options = Options.Create(settings);
+        var provider = new FoundryAIAnalysisProvider(
+            mockChatClient.Object,
+            options);
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var exception = await Assert.ThrowsAsync<AIProviderException>(
+            () => provider.AnalyseAsync(request));
+
+        // Assert
+        Assert.Contains("timed out", exception.Message);
+    }
+
+    private static FoundryAIAnalysisProvider CreateProvider(
+    Mock<IChatClient> mockChatClient)
+    {
+        var settings = new AISettings();
+
+        var options = Options.Create(settings);
+
+        return new FoundryAIAnalysisProvider(
+            mockChatClient.Object,
+            options);
     }
 }

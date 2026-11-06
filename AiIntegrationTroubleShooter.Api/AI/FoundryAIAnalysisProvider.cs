@@ -3,24 +3,38 @@ using AiIntegrationTroubleShooter.Api.Exceptions;
 using Microsoft.Extensions.AI;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using AiIntegrationTroubleShooter.Api.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace AiIntegrationTroubleShooter.Api.AI;
 
 public class FoundryAIAnalysisProvider : IAIAnalysisProvider
 {
-
     private readonly IChatClient _chatClient;
+    private readonly int _timeoutSeconds;
 
-    public FoundryAIAnalysisProvider(IChatClient chatClient)
+    public FoundryAIAnalysisProvider(
+        IChatClient chatClient, 
+        IOptions<AISettings> options)
     {
         _chatClient = chatClient;
+        _timeoutSeconds = options.Value.Foundry.TimeoutSeconds;
     }
-
 
     public async Task<IntegrationAnalysisResponse> AnalyseAsync(
         IntegrationIssueRequest request, 
         CancellationToken cancellationToken = default)
     {
+        using var timeoutSource = new CancellationTokenSource(
+            TimeSpan.FromSeconds(_timeoutSeconds));
+
+        using var linkedTokenSource =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                timeoutSource.Token);
+
+        var providerCancellationToken = linkedTokenSource.Token;
+
         var systemMessage = """
             You are an experienced software integration troubleshooting assistant.
 
@@ -70,7 +84,14 @@ public class FoundryAIAnalysisProvider : IAIAnalysisProvider
                 {
                     ResponseFormat = responseFormat
                 },
-                cancellationToken);
+                providerCancellationToken);
+        }
+        catch (OperationCanceledException) when (
+            timeoutSource.IsCancellationRequested &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            throw new AIProviderException(
+                $"The AI provider request timed out after {_timeoutSeconds} seconds.");
         }
         catch (OperationCanceledException)
         {
