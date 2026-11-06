@@ -1,6 +1,5 @@
 ﻿using AiIntegrationTroubleShooter.Api.Configuration;
 
-
 namespace AiIntegrationTroubleShooter.Tests.Configuration;
 
 public class AISettingsTests
@@ -15,14 +14,7 @@ public class AISettingsTests
         };
 
         // Act
-        bool isValid =
-            settings.Provider.Equals("Fake", StringComparison.OrdinalIgnoreCase) ||
-            (
-                settings.Provider.Equals("Foundry", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.Endpoint) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.DeploymentName) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.ApiKey)
-            );
+        bool isValid = settings.IsValidProviderConfiguration();
 
         // Assert
         Assert.True(isValid);
@@ -38,17 +30,32 @@ public class AISettingsTests
         };
 
         // Act
-        bool isValid =
-            settings.Provider.Equals("Fake", StringComparison.OrdinalIgnoreCase) ||
-            (
-                settings.Provider.Equals("Foundry", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.Endpoint) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.DeploymentName) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.ApiKey)
-            );
+        bool isValid = settings.IsValidProviderConfiguration();
 
         // Assert
         Assert.False(isValid);
+    }
+
+    [Fact]
+    public void FoundryProvider_WithAllCredentials_IsValid()
+    {
+        // Arrange
+        var settings = new AISettings
+        {
+            Provider = "Foundry",
+            Foundry = new FoundrySettings
+            {
+                Endpoint = "https://example.openai.azure.com/",
+                DeploymentName = "test-deployment",
+                ApiKey = "test-key"
+            }
+        };
+
+        // Act
+        bool isValid = settings.IsValidProviderConfiguration();
+
+        // Assert
+        Assert.True(isValid);
     }
 
     [Fact]
@@ -61,14 +68,7 @@ public class AISettingsTests
         };
 
         // Act
-        bool isValid =
-            settings.Provider.Equals("Fake", StringComparison.OrdinalIgnoreCase) ||
-            (
-                settings.Provider.Equals("Foundry", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.Endpoint) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.DeploymentName) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.ApiKey)
-            );
+        bool isValid = settings.IsValidProviderConfiguration();
 
         // Assert
         Assert.False(isValid);

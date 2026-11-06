@@ -30,14 +30,7 @@ builder.Services
     .Bind(builder.Configuration.GetSection("AI"))
     .ValidateDataAnnotations()
     .Validate(
-        settings =>
-            settings.Provider.Equals("Fake", StringComparison.OrdinalIgnoreCase) ||
-            (
-                settings.Provider.Equals("Foundry", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.Endpoint) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.DeploymentName) &&
-                !string.IsNullOrWhiteSpace(settings.Foundry.ApiKey)
-            ),
+        settings => settings.IsValidProviderConfiguration(),
         "Provider must be Fake or Foundry. Foundry requires Endpoint, DeploymentName and ApiKey.")
     .ValidateOnStart();
 
