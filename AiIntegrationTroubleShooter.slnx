@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AiIntegrationTroubleShooter.Api/AiIntegrationTroubleShooter.Api.csproj" />
+  <Project Path="AiIntegrationTroubleShooter.Tests/AiIntegrationTroubleShooter.Tests.csproj" />
+</Solution>
