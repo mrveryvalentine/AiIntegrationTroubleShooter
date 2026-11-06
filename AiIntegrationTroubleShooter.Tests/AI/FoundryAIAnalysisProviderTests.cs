@@ -1,8 +1,9 @@
 ﻿using AiIntegrationTroubleShooter.Api.AI;
-using AiIntegrationTroubleShooter.Api.Contracts;
 using AiIntegrationTroubleShooter.Api.Configuration;
+using AiIntegrationTroubleShooter.Api.Contracts;
 using AiIntegrationTroubleShooter.Api.Exceptions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 
@@ -210,10 +211,12 @@ public class FoundryAIAnalysisProviderTests
             }
         };
 
+        var logger = Mock.Of<ILogger<FoundryAIAnalysisProvider>>();
         var options = Options.Create(settings);
         var provider = new FoundryAIAnalysisProvider(
             mockChatClient.Object,
-            options);
+            options,
+            logger);
 
         var request = new IntegrationIssueRequest
         {
@@ -238,8 +241,11 @@ public class FoundryAIAnalysisProviderTests
 
         var options = Options.Create(settings);
 
+        var logger = Mock.Of<ILogger<FoundryAIAnalysisProvider>>();
+
         return new FoundryAIAnalysisProvider(
             mockChatClient.Object,
-            options);
+            options,
+            logger);
     }
 }

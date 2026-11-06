@@ -4,7 +4,7 @@ using AiIntegrationTroubleShooter.Api.Endpoints;
 using AiIntegrationTroubleShooter.Api.Services;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
-
+using System.ClientModel.Primitives;
 
 var builder = WebApplication.CreateBuilder(args);
 // Load local environment variables from .env
@@ -48,9 +48,15 @@ else if (aiSettings.Provider.Equals("Foundry", StringComparison.OrdinalIgnoreCas
 
     builder.Services.AddSingleton<IChatClient>(serviceProvider =>
     {
+        var clientOptions = new AzureOpenAIClientOptions
+        {
+            RetryPolicy = new ClientRetryPolicy(maxRetries: 2)
+        };
+
         var azureClient = new AzureOpenAIClient(
             new Uri(foundrySettings.Endpoint),
-            new Azure.AzureKeyCredential(foundrySettings.ApiKey));
+            new Azure.AzureKeyCredential(foundrySettings.ApiKey),
+            clientOptions);
 
         return azureClient
             .GetChatClient(foundrySettings.DeploymentName)

@@ -12,19 +12,23 @@ public class FoundryAIAnalysisProvider : IAIAnalysisProvider
 {
     private readonly IChatClient _chatClient;
     private readonly int _timeoutSeconds;
+    private readonly ILogger<FoundryAIAnalysisProvider> _logger;
 
     public FoundryAIAnalysisProvider(
         IChatClient chatClient, 
-        IOptions<AISettings> options)
+        IOptions<AISettings> options,
+        ILogger<FoundryAIAnalysisProvider> logger)
     {
         _chatClient = chatClient;
         _timeoutSeconds = options.Value.Foundry.TimeoutSeconds;
+        _logger = logger;
     }
 
     public async Task<IntegrationAnalysisResponse> AnalyseAsync(
         IntegrationIssueRequest request, 
         CancellationToken cancellationToken = default)
     {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         using var timeoutSource = new CancellationTokenSource(
             TimeSpan.FromSeconds(_timeoutSeconds));
 
@@ -85,6 +89,12 @@ public class FoundryAIAnalysisProvider : IAIAnalysisProvider
                     ResponseFormat = responseFormat
                 },
                 providerCancellationToken);
+
+            stopwatch.Stop();
+
+            _logger.LogInformation(
+                "AI provider request completed in {ElapsedMilliseconds} ms.",
+                stopwatch.ElapsedMilliseconds);
         }
         catch (OperationCanceledException) when (
             timeoutSource.IsCancellationRequested &&
