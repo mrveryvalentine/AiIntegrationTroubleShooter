@@ -2,7 +2,6 @@ using AiIntegrationTroubleShooter.Api.AI;
 using AiIntegrationTroubleShooter.Api.Configuration;
 using AiIntegrationTroubleShooter.Api.Endpoints;
 using AiIntegrationTroubleShooter.Api.Services;
-using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using System.ClientModel.Primitives;
 
@@ -48,19 +47,15 @@ else if (aiSettings.Provider.Equals("Foundry", StringComparison.OrdinalIgnoreCas
 
     builder.Services.AddSingleton<IChatClient>(serviceProvider =>
     {
-        var clientOptions = new AzureOpenAIClientOptions
-        {
-            RetryPolicy = new ClientRetryPolicy(maxRetries: 2)
-        };
+        var chatClient = new OpenAI.Chat.ChatClient(
+            foundrySettings.DeploymentName,
+            new System.ClientModel.ApiKeyCredential(foundrySettings.ApiKey),
+            new OpenAI.OpenAIClientOptions
+            {
+                Endpoint = new Uri(foundrySettings.Endpoint)
+            });
 
-        var azureClient = new AzureOpenAIClient(
-            new Uri(foundrySettings.Endpoint),
-            new Azure.AzureKeyCredential(foundrySettings.ApiKey),
-            clientOptions);
-
-        return azureClient
-            .GetChatClient(foundrySettings.DeploymentName)
-            .AsIChatClient();
+        return chatClient.AsIChatClient();
     });
 
     builder.Services.AddScoped<IAIAnalysisProvider, FoundryAIAnalysisProvider>();

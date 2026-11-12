@@ -78,6 +78,7 @@ public class FoundryAIAnalysisProvider : IAIAnalysisProvider
             schemaDocument.RootElement,
             "integration_analysis");
 
+        var requestStatus = "Succeeded";
         ChatResponse response;
 
         try
@@ -89,29 +90,35 @@ public class FoundryAIAnalysisProvider : IAIAnalysisProvider
                     ResponseFormat = responseFormat
                 },
                 providerCancellationToken);
-
-            stopwatch.Stop();
-
-            _logger.LogInformation(
-                "AI provider request completed in {ElapsedMilliseconds} ms.",
-                stopwatch.ElapsedMilliseconds);
         }
         catch (OperationCanceledException) when (
             timeoutSource.IsCancellationRequested &&
             !cancellationToken.IsCancellationRequested)
         {
+            requestStatus = "TimedOut";
             throw new AIProviderException(
                 $"The AI provider request timed out after {_timeoutSeconds} seconds.");
         }
         catch (OperationCanceledException)
         {
+            requestStatus = "Cancelled";
             throw;
         }
         catch (Exception ex)
         {
+            requestStatus = "Failed";
             throw new AIProviderException(
                 "The AI provider request failed.",
                 ex);
+        }
+        finally
+        {
+            stopwatch.Stop();
+
+            _logger.LogInformation(
+                "AI provider call finished with status {Status} in {ElapsedMilliseconds} ms.",
+                requestStatus,
+                stopwatch.ElapsedMilliseconds);
         }
 
         IntegrationAnalysisResponse? result;
