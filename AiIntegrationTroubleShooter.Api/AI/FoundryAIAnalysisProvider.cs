@@ -13,15 +13,18 @@ public class FoundryAIAnalysisProvider : IAIAnalysisProvider
     private readonly IChatClient _chatClient;
     private readonly int _timeoutSeconds;
     private readonly ILogger<FoundryAIAnalysisProvider> _logger;
+    private readonly IntegrationIssueSanitizer _sanitizer;
 
     public FoundryAIAnalysisProvider(
-        IChatClient chatClient, 
+        IChatClient chatClient,
         IOptions<AISettings> options,
-        ILogger<FoundryAIAnalysisProvider> logger)
+        ILogger<FoundryAIAnalysisProvider> logger,
+        IntegrationIssueSanitizer sanitizer)
     {
         _chatClient = chatClient;
         _timeoutSeconds = options.Value.Foundry.TimeoutSeconds;
         _logger = logger;
+        _sanitizer = sanitizer;
     }
 
     public async Task<IntegrationAnalysisResponse> AnalyseAsync(
@@ -64,7 +67,9 @@ public class FoundryAIAnalysisProvider : IAIAnalysisProvider
             Return JSON only.
             """;
 
-        var userMessage = JsonSerializer.Serialize(request);
+        var sanitizedRequest = _sanitizer.Sanitize(request);
+
+        var userMessage = JsonSerializer.Serialize(sanitizedRequest);
 
         var messages = new List<ChatMessage>
         {

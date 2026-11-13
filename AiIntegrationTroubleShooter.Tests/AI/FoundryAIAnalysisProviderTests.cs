@@ -211,12 +211,14 @@ public class FoundryAIAnalysisProviderTests
             }
         };
 
+        var sanitizer = new IntegrationIssueSanitizer();
         var logger = Mock.Of<ILogger<FoundryAIAnalysisProvider>>();
         var options = Options.Create(settings);
         var provider = new FoundryAIAnalysisProvider(
             mockChatClient.Object,
             options,
-            logger);
+            logger,
+            sanitizer);
 
         var request = new IntegrationIssueRequest
         {
@@ -234,10 +236,71 @@ public class FoundryAIAnalysisProviderTests
         Assert.Contains("timed out", exception.Message);
     }
 
+
+    [Fact]
+    public async Task AnalyseAsync_SensitiveData_IsRedactedBeforeSendingToChatClient()
+    {
+        // Arrange
+        var jsonResponse = """
+    {
+        "summary": "Connection failed.",
+        "possibleCauses": [],
+        "investigationSteps": ["Check connectivity."],
+        "warnings": [],
+        "requiresHumanReview": true
+    }
+    """;
+
+        IEnumerable<ChatMessage>? capturedMessages = null;
+
+        var mockChatClient = new Mock<IChatClient>();
+
+        mockChatClient
+            .Setup(x => x.GetResponseAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken>(
+                (messages, _, _) => capturedMessages = messages.ToList())
+            .ReturnsAsync(
+                new ChatResponse(
+                    new ChatMessage(ChatRole.Assistant, jsonResponse)));
+
+        var provider = CreateProvider(mockChatClient);
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed. Password=MySecret123"
+        };
+
+        // Act
+        await provider.AnalyseAsync(request);
+
+        // Assert
+        Assert.NotNull(capturedMessages);
+
+        var userMessage = capturedMessages!
+            .First(message => message.Role == ChatRole.User);
+
+        var sentContent = userMessage.Text;
+
+        Assert.Contains("Password=[REDACTED]", sentContent);
+        Assert.DoesNotContain("MySecret123", sentContent);
+
+        // The original request must remain unchanged.
+        Assert.Contains("MySecret123", request.ErrorMessage);
+    }
+
+
+
     private static FoundryAIAnalysisProvider CreateProvider(
-    Mock<IChatClient> mockChatClient)
+        Mock<IChatClient> mockChatClient)
     {
         var settings = new AISettings();
+        var sanitizer = new IntegrationIssueSanitizer();
 
         var options = Options.Create(settings);
 
@@ -246,6 +309,7 @@ public class FoundryAIAnalysisProviderTests
         return new FoundryAIAnalysisProvider(
             mockChatClient.Object,
             options,
-            logger);
+            logger,
+            sanitizer);
     }
 }

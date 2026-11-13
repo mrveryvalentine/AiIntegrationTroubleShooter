@@ -68,6 +68,7 @@ else
         $"Unknown AI provider: {aiSettings.Provider}");
 }
 
+builder.Services.AddSingleton<IntegrationIssueSanitizer>();
 builder.Services.AddScoped<IntegrationAnalysisService>();
 
 

@@ -52,10 +52,12 @@ public class FoundryRetryTimeoutTests
             }
         };
 
+        var sanitizer = new IntegrationIssueSanitizer();
         var provider = new FoundryAIAnalysisProvider(
             aiChatClient,
             Options.Create(settings),
-            Mock.Of<ILogger<FoundryAIAnalysisProvider>>());
+            Mock.Of<ILogger<FoundryAIAnalysisProvider>>(),
+            sanitizer);
 
         var request = new IntegrationIssueRequest
         {
