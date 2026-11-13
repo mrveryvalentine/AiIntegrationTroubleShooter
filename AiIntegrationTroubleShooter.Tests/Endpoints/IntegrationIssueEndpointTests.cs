@@ -77,6 +77,88 @@ public class IntegrationIssueEndpointTests
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PostIntegrationIssue_WhenRequiredFieldsAreMissing_Returns400()
+    {
+        // Arrange
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/integration-issues",
+            request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostIntegrationIssue_WhenJsonIsMalformed_Returns400()
+    {
+        // Arrange
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var content = new StringContent(
+            """{"integrationName": "Test integration", "errorMessage": """);
+
+        content.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+        // Act
+        var response = await client.PostAsync(
+            "/api/integration-issues",
+            content);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostIntegrationIssue_WhenRequestIsInvalid_DoesNotCallProvider()
+    {
+        // Arrange
+        var provider = new TrackingAIAnalysisProvider();
+
+        await using var factory = new WebApplicationFactory<Program>();
+
+        using var client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IAIAnalysisProvider>();
+
+                services.AddSingleton<IAIAnalysisProvider>(provider);
+            });
+        }).CreateClient();
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/integration-issues",
+            request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, provider.CallCount);
+    }
+
     private class UnexpectedErrorProvider : IAIAnalysisProvider
     {
         public Task<IntegrationAnalysisResponse> AnalyseAsync(
@@ -94,6 +176,21 @@ public class IntegrationIssueEndpointTests
             CancellationToken cancellationToken = default)
         {
             throw new AIProviderException("Simulated provider failure.");
+        }
+    }
+
+    private class TrackingAIAnalysisProvider : IAIAnalysisProvider
+    {
+        public int CallCount { get; private set; }
+
+        public Task<IntegrationAnalysisResponse> AnalyseAsync(
+            IntegrationIssueRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+
+            throw new InvalidOperationException(
+                "Provider should not be called for invalid requests.");
         }
     }
 }

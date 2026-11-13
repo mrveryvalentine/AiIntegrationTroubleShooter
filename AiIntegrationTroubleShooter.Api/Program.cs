@@ -52,7 +52,9 @@ else if (aiSettings.Provider.Equals("Foundry", StringComparison.OrdinalIgnoreCas
             new System.ClientModel.ApiKeyCredential(foundrySettings.ApiKey),
             new OpenAI.OpenAIClientOptions
             {
-                Endpoint = new Uri(foundrySettings.Endpoint)
+                Endpoint = new Uri(foundrySettings.Endpoint),
+                RetryPolicy = new ClientRetryPolicy(
+                    maxRetries: 1)
             });
 
         return chatClient.AsIChatClient();

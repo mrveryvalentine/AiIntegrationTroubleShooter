@@ -1,4 +1,5 @@
-﻿using AiIntegrationTroubleShooter.Api.Contracts;
+﻿
+using AiIntegrationTroubleShooter.Api.Contracts;
 using AiIntegrationTroubleShooter.Api.Exceptions;
 using AiIntegrationTroubleShooter.Api.Services;
 using System.ComponentModel.DataAnnotations;
@@ -13,10 +14,12 @@ public static class IntegrationIssueEndpoints
             async (
                 IntegrationIssueRequest request,
                 IntegrationAnalysisService analysisService,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
             {
                 var validationResults = new List<ValidationResult>();
                 var validationContext = new ValidationContext(request);
+                var logger = loggerFactory.CreateLogger("IntegrationIssueEndpoints");
 
                 bool isValid = Validator.TryValidateObject(
                     request,
@@ -51,9 +54,10 @@ public static class IntegrationIssueEndpoints
                 }
                 catch (AIProviderException ex)
                 {
-                    app.Logger.LogError(
+                    logger.LogError(
                         ex,
-                        "AI provider failed to analyse integration issue.");
+                        "AI provider failed to analyse integration {IntegrationName}.",
+                        request.IntegrationName);
 
                     return Results.Problem(
                         title: "AI analysis unavailable",
