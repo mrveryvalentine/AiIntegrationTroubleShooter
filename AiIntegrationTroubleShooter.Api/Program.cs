@@ -1,12 +1,15 @@
 using AiIntegrationTroubleShooter.Api.AI;
 using AiIntegrationTroubleShooter.Api.Configuration;
 using AiIntegrationTroubleShooter.Api.Endpoints;
-using AiIntegrationTroubleShooter.Api.Services;
-using Microsoft.Extensions.AI;
-using System.ClientModel.Primitives;
 using AiIntegrationTroubleShooter.Api.Security;
+using AiIntegrationTroubleShooter.Api.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.AI;
 using Microsoft.OpenApi;
+using System.ClientModel.Primitives;
+using System.Threading.RateLimiting;
+
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
@@ -109,6 +112,18 @@ else
 builder.Services.AddSingleton<IntegrationIssueSanitizer>();
 builder.Services.AddScoped<IntegrationAnalysisService>();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddFixedWindowLimiter("AIAnalysis", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 10;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueLimit = 0;
+        limiterOptions.AutoReplenishment = true;
+    });
+});
 
 
 var app = builder.Build();
@@ -121,7 +136,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

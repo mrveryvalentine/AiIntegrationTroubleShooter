@@ -36,5 +36,6 @@ public class FoundrySettings
 
     public string ApiKey { get; set; } = string.Empty;
 
+    [Range(5, 300)]
     public int TimeoutSeconds { get; set; } = 60;
 }

@@ -296,6 +296,48 @@ public class IntegrationIssueEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PostIntegrationIssue_WhenRateLimitIsExceeded_Returns429()
+    {
+        // Arrange
+        await using var factory = CreateFactory(services =>
+        {
+            services.RemoveAll<IAIAnalysisProvider>();
+            services.AddScoped<IAIAnalysisProvider, SuccessfulAIAnalysisProvider>();
+        });
+
+        using var client = CreateAuthenticatedClient(factory);
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        HttpResponseMessage? lastResponse = null;
+
+        for (int i = 0; i < 11; i++)
+        {
+            lastResponse = await client.PostAsJsonAsync(
+                "/api/integration-issues",
+                request);
+
+            if (i < 10)
+            {
+                Assert.Equal(HttpStatusCode.OK, lastResponse.StatusCode);
+            }
+        }
+
+        // Assert
+        Assert.NotNull(lastResponse);
+        Assert.Equal(
+            HttpStatusCode.TooManyRequests,
+            lastResponse.StatusCode);
+    }
+
     private class SuccessfulAIAnalysisProvider : IAIAnalysisProvider
     {
         public Task<IntegrationAnalysisResponse> AnalyseAsync(

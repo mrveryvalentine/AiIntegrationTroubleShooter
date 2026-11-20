@@ -50,14 +50,16 @@ public static class IntegrationIssueEndpoints
                 catch (OperationCanceledException)
                     when (cancellationToken.IsCancellationRequested)
                 {
+                    logger.LogDebug(
+                        "Integration analysis request was cancelled by the client.");
+
                     throw;
                 }
                 catch (AIProviderException ex)
                 {
                     logger.LogError(
                         ex,
-                        "AI provider failed to analyse integration {IntegrationName}.",
-                        request.IntegrationName);
+                        "AI provider failed to analyse an integration request.");
 
                     return Results.Problem(
                         title: "AI analysis unavailable",
@@ -65,6 +67,7 @@ public static class IntegrationIssueEndpoints
                         statusCode: StatusCodes.Status503ServiceUnavailable);
                 }
             })
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting("AIAnalysis");
     }
 }
