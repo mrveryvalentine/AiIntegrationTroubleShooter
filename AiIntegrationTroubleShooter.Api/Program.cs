@@ -6,6 +6,11 @@ using Microsoft.Extensions.AI;
 using System.ClientModel.Primitives;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 64 * 1024;
+});
+
 // Load local environment variables from .env
 var envFile = Path.Combine(
     builder.Environment.ContentRootPath,
