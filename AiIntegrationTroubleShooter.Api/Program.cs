@@ -4,6 +4,9 @@ using AiIntegrationTroubleShooter.Api.Endpoints;
 using AiIntegrationTroubleShooter.Api.Services;
 using Microsoft.Extensions.AI;
 using System.ClientModel.Primitives;
+using AiIntegrationTroubleShooter.Api.Security;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
@@ -27,7 +30,23 @@ builder.Configuration.AddEnvironmentVariables();
 
 // Register Swagger services
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.ApiKey,
+        Name = "X-API-Key",
+        In = ParameterLocation.Header,
+        Description = "Enter your API key."
+    });
+
+    options.AddSecurityRequirement(document =>
+        new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference("ApiKey", document)] = []
+        });
+});
 
 builder.Services
     .AddOptions<AISettings>()
@@ -37,6 +56,20 @@ builder.Services
         settings => settings.IsValidProviderConfiguration(),
         "Provider must be Fake or Foundry. Foundry requires Endpoint, DeploymentName and ApiKey.")
     .ValidateOnStart();
+
+builder.Services
+    .AddOptions<ApiKeySettings>()
+    .Bind(builder.Configuration.GetSection("Security"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddAuthentication("ApiKey")
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+        "ApiKey", 
+        options => { });
+
+builder.Services.AddAuthorization();
 
 var aiSettings = builder.Configuration
     .GetSection("AI")
@@ -88,6 +121,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapIntegrationIssueEndpoints();
 

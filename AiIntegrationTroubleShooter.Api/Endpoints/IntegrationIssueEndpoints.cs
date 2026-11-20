@@ -64,6 +64,7 @@ public static class IntegrationIssueEndpoints
                         detail: "The AI analysis service could not process your request.",
                         statusCode: StatusCodes.Status503ServiceUnavailable);
                 }
-            });
+            })
+            .RequireAuthorization();
     }
 }

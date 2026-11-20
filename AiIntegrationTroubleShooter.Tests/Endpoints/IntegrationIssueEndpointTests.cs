@@ -6,26 +6,27 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Net;
 using System.Net.Http.Json;
+using AiIntegrationTroubleShooter.Api.Configuration;
+
 
 namespace AiIntegrationTroubleShooter.Tests.Endpoints;
 
 public class IntegrationIssueEndpointTests
 {
+    private const string TestApiKey ="test-api-key-for-integration-tests-32";
+
     [Fact]
     public async Task PostIntegrationIssue_WhenProviderFails_Returns503()
     {
         // Arrange
-        await using var factory = new WebApplicationFactory<Program>();
-
-        using var client = factory.WithWebHostBuilder(builder =>
+        await using var factory = CreateFactory(services =>
         {
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IAIAnalysisProvider>();
+            services.RemoveAll<IAIAnalysisProvider>();
 
-                services.AddScoped<IAIAnalysisProvider, FailingAIAnalysisProvider>();
-            });
-        }).CreateClient();
+            services.AddScoped<IAIAnalysisProvider, FailingAIAnalysisProvider>();
+        });
+
+        using var client = CreateAuthenticatedClient(factory);
 
         var request = new IntegrationIssueRequest
         {
@@ -48,17 +49,14 @@ public class IntegrationIssueEndpointTests
     public async Task PostIntegrationIssue_WhenUnexpectedErrorOccurs_Returns500()
     {
         // Arrange
-        await using var factory = new WebApplicationFactory<Program>();
-
-        using var client = factory.WithWebHostBuilder(builder =>
+        await using var factory = CreateFactory(services =>
         {
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IAIAnalysisProvider>();
+            services.RemoveAll<IAIAnalysisProvider>();
 
-                services.AddScoped<IAIAnalysisProvider, UnexpectedErrorProvider>();
-            });
-        }).CreateClient();
+            services.AddScoped<IAIAnalysisProvider, UnexpectedErrorProvider>();
+        });
+
+        using var client = CreateAuthenticatedClient(factory);
 
         var request = new IntegrationIssueRequest
         {
@@ -81,8 +79,8 @@ public class IntegrationIssueEndpointTests
     public async Task PostIntegrationIssue_WhenRequiredFieldsAreMissing_Returns400()
     {
         // Arrange
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = CreateFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var request = new IntegrationIssueRequest
         {
@@ -105,8 +103,8 @@ public class IntegrationIssueEndpointTests
     public async Task PostIntegrationIssue_WhenJsonIsMalformed_Returns400()
     {
         // Arrange
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = CreateFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var content = new StringContent(
             """{"integrationName": "Test integration", "errorMessage": """);
@@ -129,17 +127,14 @@ public class IntegrationIssueEndpointTests
         // Arrange
         var provider = new TrackingAIAnalysisProvider();
 
-        await using var factory = new WebApplicationFactory<Program>();
-
-        using var client = factory.WithWebHostBuilder(builder =>
+        await using var factory = CreateFactory(services =>
         {
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IAIAnalysisProvider>();
+            services.RemoveAll<IAIAnalysisProvider>();
 
-                services.AddSingleton<IAIAnalysisProvider>(provider);
-            });
-        }).CreateClient();
+            services.AddSingleton<IAIAnalysisProvider>(provider);
+        });
+
+        using var client = CreateAuthenticatedClient(factory);
 
         var request = new IntegrationIssueRequest
         {
@@ -157,6 +152,133 @@ public class IntegrationIssueEndpointTests
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(0, provider.CallCount);
+    }
+
+
+    [Fact]
+    public async Task PostIntegrationIssue_WithoutApiKey_Returns401()
+    {
+        // Arrange
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/integration-issues",
+            request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostIntegrationIssue_WithInvalidApiKey_Returns401()
+    {
+        // Arrange
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        client.DefaultRequestHeaders.Add(
+            "X-API-Key",
+            "incorrect-test-api-key");
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/integration-issues",
+            request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+
+    [Fact]
+    public async Task PostIntegrationIssue_WithValidApiKey_Returns200()
+    {
+        // Arrange
+        await using var factory = CreateFactory(services =>
+        {
+            services.RemoveAll<IAIAnalysisProvider>();
+            services.AddScoped<IAIAnalysisProvider, SuccessfulAIAnalysisProvider>();
+        });
+
+        using var client = CreateAuthenticatedClient(factory);
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/integration-issues",
+            request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private class SuccessfulAIAnalysisProvider : IAIAnalysisProvider
+    {
+        public Task<IntegrationAnalysisResponse> AnalyseAsync(
+            IntegrationIssueRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var response = new IntegrationAnalysisResponse
+            {
+                Summary = "The integration failed.",
+                RequiresHumanReview = true
+            };
+
+            return Task.FromResult(response);
+        }
+    }
+
+
+    private static WebApplicationFactory<Program> CreateFactory(
+        Action<IServiceCollection>? configureServices = null)
+    {
+        var factory = new WebApplicationFactory<Program>();
+
+        return factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.Configure<ApiKeySettings>(
+                    options => options.ApiKey = TestApiKey);
+
+                configureServices?.Invoke(services);
+            });
+        });
+    }
+
+    private static HttpClient CreateAuthenticatedClient(
+        WebApplicationFactory<Program> factory)
+    {
+        var client = factory.CreateClient();
+
+        client.DefaultRequestHeaders.Add("X-API-Key", TestApiKey);
+
+        return client;
     }
 
     private class UnexpectedErrorProvider : IAIAnalysisProvider
