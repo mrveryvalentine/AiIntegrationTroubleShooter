@@ -29,13 +29,18 @@ public class IntegrationIssueSanitizer
     {
         return new IntegrationIssueRequest
         {
-            IntegrationName = SanitizeText(request.IntegrationName),
-            SourceSystem = SanitizeText(request.SourceSystem),
-            TargetSystem = SanitizeText(request.TargetSystem),
+            IntegrationName = SanitizeRequiredText(request.IntegrationName),
+            SourceSystem = SanitizeRequiredText(request.SourceSystem),
+            TargetSystem = SanitizeRequiredText(request.TargetSystem),
             ErrorCode = SanitizeText(request.ErrorCode),
-            ErrorMessage = SanitizeText(request.ErrorMessage),
+            ErrorMessage = SanitizeRequiredText(request.ErrorMessage),
             Context = SanitizeText(request.Context)
         };
+    }
+
+    private static string SanitizeRequiredText(string value)
+    {
+        return SanitizeText(value) ?? string.Empty;
     }
 
     private static string? SanitizeText(string? value)

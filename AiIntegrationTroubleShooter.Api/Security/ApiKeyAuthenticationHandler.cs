@@ -33,7 +33,15 @@ public class ApiKeyAuthenticationHandler
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var suppliedBytes = Encoding.UTF8.GetBytes(suppliedApiKey.ToString());
+        // Only accept exactly one non-empty API key.
+        if (suppliedApiKey.Count != 1 ||
+            string.IsNullOrWhiteSpace(suppliedApiKey[0]))
+        {
+            return Task.FromResult(
+                AuthenticateResult.Fail("Invalid API key."));
+        }
+
+        var suppliedBytes = Encoding.UTF8.GetBytes(suppliedApiKey[0]!);
         var configuredBytes = Encoding.UTF8.GetBytes(_apiKeySettings.ApiKey);
 
         bool isValid = CryptographicOperations.FixedTimeEquals(
@@ -48,8 +56,8 @@ public class ApiKeyAuthenticationHandler
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.Name, "ApiKeyClient")
-        };
+        new Claim(ClaimTypes.Name, "ApiKeyClient")
+    };
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);

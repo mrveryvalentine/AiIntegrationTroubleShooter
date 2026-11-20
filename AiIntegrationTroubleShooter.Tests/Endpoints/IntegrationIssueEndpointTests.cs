@@ -207,6 +207,65 @@ public class IntegrationIssueEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PostIntegrationIssue_WithEmptyApiKey_Returns401()
+    {
+        // Arrange
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "X-API-Key",
+            string.Empty);
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/integration-issues",
+            request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostIntegrationIssue_WithMultipleApiKeys_Returns401()
+    {
+        // Arrange
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        client.DefaultRequestHeaders.Add(
+            "X-API-Key",
+            new[]
+            {
+            TestApiKey,
+            "another-test-api-key"
+            });
+
+        var request = new IntegrationIssueRequest
+        {
+            IntegrationName = "Test integration",
+            SourceSystem = "System A",
+            TargetSystem = "System B",
+            ErrorMessage = "Connection failed"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/integration-issues",
+            request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 
     [Fact]
     public async Task PostIntegrationIssue_WithValidApiKey_Returns200()
