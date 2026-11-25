@@ -14,6 +14,9 @@ public class IntegrationAnalysisResponse
     public List<string> InvestigationSteps { get; set; }
         = new List<string>();
 
+    public List<string> ImmediateActions { get; set; }
+        = new List<string>();
+
     public List<string> Warnings { get; set; }
         = new List<string>();
 
@@ -32,4 +35,8 @@ public class PossibleCause
     [Required]
     [StringLength(1000, MinimumLength = 3)]
     public string Reasoning { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(1000, MinimumLength = 3)]
+    public string EvidenceToConfirm { get; set; } = string.Empty;
 }

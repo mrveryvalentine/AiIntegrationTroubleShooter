@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.AI;
 using Microsoft.OpenApi;
 using System.ClientModel.Primitives;
-using System.Threading.RateLimiting;
 
 
 var builder = WebApplication.CreateBuilder(args);

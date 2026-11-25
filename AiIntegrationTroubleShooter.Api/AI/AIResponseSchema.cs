@@ -23,13 +23,27 @@ public static class AIResponseSchema
                         },
                         "reasoning": {
                             "type": "string"
+                        },
+                        "evidenceToConfirm": {
+                            "type": "string"
                         }
                     },
-                    "required": ["cause", "confidence", "reasoning"],
+                    "required": [
+                        "cause",
+                        "confidence",
+                        "reasoning",
+                        "evidenceToConfirm"
+                    ],
                     "additionalProperties": false
                 }
             },
             "investigationSteps": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "immediateActions": {
                 "type": "array",
                 "items": {
                     "type": "string"
@@ -49,6 +63,7 @@ public static class AIResponseSchema
             "summary",
             "possibleCauses",
             "investigationSteps",
+            "immediateActions",
             "warnings",
             "requiresHumanReview"
         ],
