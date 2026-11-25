@@ -59,3 +59,13 @@ The application was successfully tested with a real Azure AI Foundry deployment 
 ## Purpose
 
 A practical project exploring AI integration in .NET applications, focusing on backend architecture, security, reliability and structured AI responses.
+
+## Screenshots
+
+### API endpoint
+
+![Swagger API endpoint](docs/images/swagger-api-overview.png)
+
+### AI analysis response
+
+![AI troubleshooting analysis](docs/images/swagger-analysis-result.png)
