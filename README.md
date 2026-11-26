@@ -54,7 +54,7 @@ dotnet test
 
 ## Azure AI Foundry
 
-The application was successfully tested with a real Azure AI Foundry deployment using GPT-5 mini. The Azure resources were subsequently deleted to avoid ongoing costs.
+The application was successfully tested with a real Azure AI Foundry deployment using GPT-5 mini.
 
 ## Purpose
 
